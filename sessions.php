@@ -55,7 +55,7 @@ require_capability('mod/attendance:manageattendances', $context);
 
 $att = new attendance($att, $cm, $course, $context, $pageparams);
 
-$PAGE->set_url($att->url_sessions(array('action'=>$pageparams->action)));
+$PAGE->set_url($att->url_sessions(array('action' => $pageparams->action)));
 $PAGE->set_title($course->shortname. ": ".$att->name);
 $PAGE->set_heading($course->fullname);
 $PAGE->set_cacheable(true);
@@ -71,7 +71,11 @@ switch ($att->pageparams->action) {
         if ($formdata = $mform->get_data()) {
             $sessions = construct_sessions_data_for_add($formdata);
             $att->add_sessions($sessions);
-            redirect($url, get_string('sessionsgenerated', 'attendance'));
+            $message = count($sessions) == 1 ? get_string('sessiongenerated', 'attendance') : get_string('sessionsgenerated', 'attendance', count($sessions));
+            mod_attendance_notifyqueue::notify_success($message);
+            // Redirect to the sessions tab always showing all sessions.
+            $SESSION->attcurrentattview[$cm->course] = ATT_VIEW_ALL;
+            redirect($att->url_manage());
         }
         break;
     case att_sessions_page_params::ACTION_UPDATE:
@@ -88,7 +92,8 @@ switch ($att->pageparams->action) {
         if ($formdata = $mform->get_data()) {
             $att->update_session_from_form_data($formdata, $sessionid);
 
-            redirect($att->url_manage(), get_string('sessionupdated', 'attendance'));
+            mod_attendance_notifyqueue::notify_success(get_string('sessionupdated', 'attendance'));
+            redirect($att->url_manage());
         }
         break;
     case att_sessions_page_params::ACTION_DELETE:
@@ -171,7 +176,7 @@ switch ($att->pageparams->action) {
 
         if ($formdata = $mform->get_data()) {
             $sessionsids = explode('_', $ids);
-            $duration = $formdata->durtime['hours']*HOURSECS + $formdata->durtime['minutes']*MINSECS;
+            $duration = $formdata->durtime['hours'] * HOURSECS + $formdata->durtime['minutes'] * MINSECS;
             $att->update_sessions_duration($sessionsids, $duration);
             redirect($att->url_manage(), get_string('sessionupdated', 'attendance'));
         }
@@ -215,7 +220,7 @@ echo $OUTPUT->footer();
 function construct_sessions_data_for_add($formdata) {
     global $CFG;
 
-    $duration = $formdata->durtime['hours']*HOURSECS + $formdata->durtime['minutes']*MINSECS;
+    $duration = $formdata->durtime['hours'] * HOURSECS + $formdata->durtime['minutes'] * MINSECS;
     $now = time();
 
     $sessions = array();
@@ -237,17 +242,17 @@ function construct_sessions_data_for_add($formdata) {
             $startweek = $startdate - $dinfo['wday'] * DAYSECS; // Call new variable.
         } else {
             $wday = $dinfo['wday'] === 0 ? 7 : $dinfo['wday'];
-            $startweek = $startdate - ($wday-1) * DAYSECS;
+            $startweek = $startdate - ($wday - 1) * DAYSECS;
         }
 
-        $wdaydesc = array(0=>'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat');
+        $wdaydesc = array(0 => 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat');
 
         while ($sdate < $enddate) {
             if ($sdate < $startweek + WEEKSECS) {
                 $dinfo = usergetdate($sdate);
                 if (isset($formdata->sdays) && array_key_exists($wdaydesc[$dinfo['wday']], $formdata->sdays)) {
                     $sess = new stdClass();
-                    $sess->sessdate =  usergetmidnight($sdate) + $starttime;
+                    $sess->sessdate = usergetmidnight($sdate) + $starttime;
                     $sess->duration = $duration;
                     $sess->descriptionitemid = $formdata->sdescription['itemid'];
                     $sess->description = $formdata->sdescription['text'];
@@ -275,7 +280,7 @@ function construct_sessions_data_for_add($formdata) {
         $sess->descriptionformat = $formdata->sdescription['format'];
         $sess->timemodified = $now;
         if (isset($formdata->studentscanmark)) { // Students will be able to mark their own attendance.
-            $sess->studentscanmark = 1; 
+            $sess->studentscanmark = 1;
         }
         $sess->statusset = $formdata->statusset;
 
