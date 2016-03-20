@@ -75,7 +75,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
 
     protected function render_sess_group_selector(attendance_filter_controls $fcontrols) {
         switch ($fcontrols->pageparams->selectortype) {
-            case att_page_with_filter_controls::SELECTOR_SESS_TYPE:
+            case mod_attendance_page_with_filter_controls::SELECTOR_SESS_TYPE:
                 $sessgroups = $fcontrols->get_sess_groups_list();
                 if ($sessgroups) {
                     $select = new single_select($fcontrols->url(), 'group', $sessgroups,
@@ -86,7 +86,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
                     return html_writer::tag('div', $output, array('class' => 'groupselector'));
                 }
                 break;
-            case att_page_with_filter_controls::SELECTOR_GROUP:
+            case mod_attendance_page_with_filter_controls::SELECTOR_GROUP:
                 return groups_print_activity_menu($fcontrols->cm, $fcontrols->url(), true);
         }
 
@@ -234,7 +234,12 @@ class mod_attendance_renderer extends plugin_renderer_base {
             $dta = $this->construct_date_time_actions($sessdata, $sess);
 
             $table->data[$sess->id][] = $i;
-            $table->data[$sess->id][] = $sess->groupid ? $sessdata->groups[$sess->groupid]->name : get_string('commonsession', 'attendance');
+            if ($sess->groupid) {
+                $table->data[$sess->id][] = get_string('group') . ': ' . $sessdata->groups[$sess->groupid]->name;
+            } else {
+                $table->data[$sess->id][] = get_string('commonsession', 'attendance');
+            }
+
             $table->data[$sess->id][] = $dta['date'];
             $table->data[$sess->id][] = $dta['time'];
             $table->data[$sess->id][] = $sess->description;
@@ -273,11 +278,11 @@ class mod_attendance_renderer extends plugin_renderer_base {
         }
 
         if (has_capability('mod/attendance:manageattendances', $sessdata->att->context)) {
-            $url = $sessdata->url_sessions($sess->id, att_sessions_page_params::ACTION_UPDATE);
+            $url = $sessdata->url_sessions($sess->id, mod_attendance_sessions_page_params::ACTION_UPDATE);
             $title = get_string('editsession', 'attendance');
             $actions .= $this->output->action_icon($url, new pix_icon('t/edit', $title));
 
-            $url = $sessdata->url_sessions($sess->id, att_sessions_page_params::ACTION_DELETE);
+            $url = $sessdata->url_sessions($sess->id, mod_attendance_sessions_page_params::ACTION_DELETE);
             $title = get_string('deletesession', 'attendance');
             $actions .= $this->output->action_icon($url, new pix_icon('t/delete', $title));
         }
@@ -305,9 +310,8 @@ class mod_attendance_renderer extends plugin_renderer_base {
                 $table->data[1][] = html_writer::empty_tag('input', $attributes);
             }
 
-            $options = array(
-                        att_sessions_page_params::ACTION_DELETE_SELECTED => get_string('delete'),
-                        att_sessions_page_params::ACTION_CHANGE_DURATION => get_string('changeduration', 'attendance'));
+            $options = array(mod_attendance_sessions_page_params::ACTION_DELETE_SELECTED => get_string('delete'),
+                mod_attendance_sessions_page_params::ACTION_CHANGE_DURATION => get_string('changeduration', 'attendance'));
 
             $controls = html_writer::select($options, 'action');
             $attributes = array(
@@ -325,14 +329,15 @@ class mod_attendance_renderer extends plugin_renderer_base {
 
     protected function render_attendance_take_data(attendance_take_data $takedata) {
         $controls = $this->render_attendance_take_controls($takedata);
-
-        if ($takedata->pageparams->viewmode == att_take_page_params::SORTED_LIST) {
-            $table = $this->render_attendance_take_list($takedata);
+        $table = html_writer::start_div('no-overflow');
+        if ($takedata->pageparams->viewmode == mod_attendance_take_page_params::SORTED_LIST) {
+            $table .= $this->render_attendance_take_list($takedata);
         } else {
-            $table = $this->render_attendance_take_grid($takedata);
+            $table .= $this->render_attendance_take_grid($takedata);
         }
         $table .= html_writer::input_hidden_params($takedata->url(array('sesskey' => sesskey(),
                                                                         'page' => $takedata->pageparams->page)));
+        $table .= html_writer::end_div();
         $params = array(
                 'type'  => 'submit',
                 'value' => get_string('save', 'attendance'));
@@ -390,7 +395,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
         $controls = '';
         $context = context_module::instance($takedata->cm->id);
         $group = 0;
-        if ($takedata->pageparams->grouptype != attendance::SESSION_COMMON) {
+        if ($takedata->pageparams->grouptype != mod_attendance_structure::SESSION_COMMON) {
             $group = $takedata->pageparams->grouptype;
         } else {
             if ($takedata->pageparams->group) {
@@ -429,7 +434,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
             }
         }
 
-        if ($takedata->pageparams->grouptype == attendance::SESSION_COMMON and
+        if ($takedata->pageparams->grouptype == mod_attendance_structure::SESSION_COMMON and
                 ($takedata->groupmode == VISIBLEGROUPS or
                 ($takedata->groupmode and has_capability('moodle/site:accessallgroups', $context)))) {
             $controls .= groups_print_activity_menu($takedata->cm, $takedata->url(), true);
@@ -438,14 +443,14 @@ class mod_attendance_renderer extends plugin_renderer_base {
         $controls .= html_writer::empty_tag('br');
 
         $options = array(
-                att_take_page_params::SORTED_LIST   => get_string('sortedlist', 'attendance'),
-                att_take_page_params::SORTED_GRID   => get_string('sortedgrid', 'attendance'));
+            mod_attendance_take_page_params::SORTED_LIST   => get_string('sortedlist', 'attendance'),
+            mod_attendance_take_page_params::SORTED_GRID   => get_string('sortedgrid', 'attendance'));
         $select = new single_select($takedata->url(), 'viewmode', $options, $takedata->pageparams->viewmode, null);
         $select->set_label(get_string('viewmode', 'attendance'));
         $select->class = 'singleselect inline';
         $controls .= $this->output->render($select);
 
-        if ($takedata->pageparams->viewmode == att_take_page_params::SORTED_LIST) {
+        if ($takedata->pageparams->viewmode == mod_attendance_take_page_params::SORTED_LIST) {
             $options = array(
                     0 => get_string('donotusepaging', 'attendance'),
                    get_config('attendance', 'resultsperpage') => get_config('attendance', 'resultsperpage'));
@@ -454,7 +459,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
             $controls .= $this->output->render($select);
         }
 
-        if ($takedata->pageparams->viewmode == att_take_page_params::SORTED_GRID) {
+        if ($takedata->pageparams->viewmode == mod_attendance_take_page_params::SORTED_GRID) {
             $options = array (1 => '1 '.get_string('column', 'attendance'), '2 '.get_string('columns', 'attendance'),
                                    '3 '.get_string('columns', 'attendance'), '4 '.get_string('columns', 'attendance'),
                                    '5 '.get_string('columns', 'attendance'), '6 '.get_string('columns', 'attendance'),
@@ -658,7 +663,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
 
                 $input = html_writer::empty_tag('input', $params);
 
-                if ($takedata->pageparams->viewmode == att_take_page_params::SORTED_GRID) {
+                if ($takedata->pageparams->viewmode == mod_attendance_take_page_params::SORTED_GRID) {
                     $input = html_writer::tag('nobr', $input . $st->acronym);
                 }
 
@@ -702,14 +707,14 @@ class mod_attendance_renderer extends plugin_renderer_base {
     protected function render_user_report_tabs(attendance_user_data $userdata) {
         $tabs = array();
 
-        $tabs[] = new tabobject(att_view_page_params::MODE_THIS_COURSE,
-                        $userdata->url()->out(true, array('mode' => att_view_page_params::MODE_THIS_COURSE)),
+        $tabs[] = new tabobject(mod_attendance_view_page_params::MODE_THIS_COURSE,
+                        $userdata->url()->out(true, array('mode' => mod_attendance_view_page_params::MODE_THIS_COURSE)),
                         get_string('thiscourse', 'attendance'));
 
         // Skip the 'all courses' tab for 'temporary' users.
         if ($userdata->user->type == 'standard') {
-            $tabs[] = new tabobject(att_view_page_params::MODE_ALL_COURSES,
-                            $userdata->url()->out(true, array('mode' => att_view_page_params::MODE_ALL_COURSES)),
+            $tabs[] = new tabobject(mod_attendance_view_page_params::MODE_ALL_COURSES,
+                            $userdata->url()->out(true, array('mode' => mod_attendance_view_page_params::MODE_ALL_COURSES)),
                             get_string('allcourses', 'attendance'));
         }
 
@@ -719,7 +724,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
     private function construct_user_data(attendance_user_data $userdata) {
         $o = html_writer::tag('h2', fullname($userdata->user));
 
-        if ($userdata->pageparams->mode == att_view_page_params::MODE_THIS_COURSE) {
+        if ($userdata->pageparams->mode == mod_attendance_view_page_params::MODE_THIS_COURSE) {
             $o .= html_writer::empty_tag('hr');
 
             $o .= construct_user_data_stat($userdata->stat, $userdata->statuses,
@@ -769,7 +774,13 @@ class mod_attendance_renderer extends plugin_renderer_base {
 
             $row = new html_table_row();
             $row->cells[] = $i;
-            $row->cells[] = html_writer::tag('nobr', $sess->groupid ? $userdata->groups[$sess->groupid]->name : get_string('commonsession', 'attendance'));
+            if ($sess->groupid) {
+                $sessiontypeshort = get_string('group') . ': ' . $userdata->groups[$sess->groupid]->name;
+            } else {
+                $sessiontypeshort = get_string('commonsession', 'attendance');
+            }
+
+            $row->cells[] = html_writer::tag('nobr', $sessiontypeshort);
             $row->cells[] = userdate($sess->sessdate, get_string('strftimedmyw', 'attendance'));
             $row->cells[] = $this->construct_time($sess->sessdate, $sess->duration);
             $row->cells[] = $sess->description;
@@ -847,7 +858,11 @@ class mod_attendance_renderer extends plugin_renderer_base {
                 $sesstext = html_writer::link($reportdata->url_take($sess->id, $sess->groupid), $sesstext);
             }
             $sesstext .= html_writer::empty_tag('br');
-            $sesstext .= $sess->groupid ? $reportdata->groups[$sess->groupid]->name : get_string('commonsession', 'attendance');
+            if ($sess->groupid) {
+                $sesstext .= get_string('group') . ': ' . $reportdata->groups[$sess->groupid]->name;
+            } else {
+                $sesstext .= get_string('commonsession', 'attendance');
+            }
 
             $table->head[] = $sesstext;
             $table->align[] = 'center';
@@ -896,7 +911,8 @@ class mod_attendance_renderer extends plugin_renderer_base {
             }
 
             if ($bulkmessagecapability) { // Create the checkbox for bulk messaging.
-                $row->cells[] = html_writer::checkbox('user'.$user->id, 'on', false, '', array('class' => 'attendancesesscheckbox'));
+                $row->cells[] = html_writer::checkbox('user'.$user->id, 'on', false, '',
+                                                      array('class' => 'attendancesesscheckbox'));
             }
 
             $table->data[] = $row;
@@ -1011,7 +1027,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
         $table->data[$i][] = $this->construct_text_input('newdescription', 30, 30);
         $table->data[$i][] = $this->construct_text_input('newgrade', 4, 4);
         $table->data[$i][] = $this->construct_preferences_button(get_string('add', 'attendance'),
-                                                                 att_preferences_page_params::ACTION_ADD);
+            mod_attendance_preferences_page_params::ACTION_ADD);
 
         $o = html_writer::tag('h1', get_string('myvariables', 'attendance'));
         $o .= html_writer::table($table);
@@ -1019,7 +1035,7 @@ class mod_attendance_renderer extends plugin_renderer_base {
         // We should probably rewrite this to use mforms but for now add sesskey.
         $o .= html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()))."\n";
 
-        $o .= $this->construct_preferences_button(get_string('update', 'attendance'), att_preferences_page_params::ACTION_SAVE);
+        $o .= $this->construct_preferences_button(get_string('update', 'attendance'), mod_attendance_preferences_page_params::ACTION_SAVE);
         $o = html_writer::tag('form', $o, array('id' => 'preferencesform', 'method' => 'post',
                                                 'action' => $prefdata->url(array(), false)->out_omit_querystring()));
         $o = $this->output->container($o, 'generalbox attwidth');
@@ -1042,18 +1058,18 @@ class mod_attendance_renderer extends plugin_renderer_base {
         $params = array('sesskey' => sesskey(),
                         'statusid' => $st->id);
         if ($st->visible) {
-            $params['action'] = att_preferences_page_params::ACTION_HIDE;
+            $params['action'] = mod_attendance_preferences_page_params::ACTION_HIDE;
             $showhideicon = $OUTPUT->action_icon(
                     $prefdata->url($params),
                     new pix_icon("t/hide", get_string('hide')));
         } else {
-            $params['action'] = att_preferences_page_params::ACTION_SHOW;
+            $params['action'] = mod_attendance_preferences_page_params::ACTION_SHOW;
             $showhideicon = $OUTPUT->action_icon(
                     $prefdata->url($params),
                     new pix_icon("t/show", get_string('show')));
         }
         if (!$st->haslogs) {
-            $params['action'] = att_preferences_page_params::ACTION_DELETE;
+            $params['action'] = mod_attendance_preferences_page_params::ACTION_DELETE;
             $deleteicon = $OUTPUT->action_icon(
                     $prefdata->url($params),
                     new pix_icon("t/delete", get_string('delete')));

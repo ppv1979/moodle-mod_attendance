@@ -39,7 +39,7 @@ require_login($course, true, $cm);
 $context = context_module::instance($cm->id);
 require_capability('mod/attendance:export', $context);
 
-$att = new attendance($att, $cm, $course, $context);
+$att = new mod_attendance_structure($att, $cm, $course, $context);
 
 $PAGE->set_url($att->url_export());
 $PAGE->set_title($course->shortname. ": ".$att->name);
@@ -53,11 +53,11 @@ $mform = new mod_attendance_export_form($att->url_export(), $formparams);
 
 if ($formdata = $mform->get_data()) {
 
-    $pageparams = new att_page_with_filter_controls();
+    $pageparams = new mod_attendance_page_with_filter_controls();
     $pageparams->init($cm);
     $pageparams->page = 0;
     $pageparams->group = $formdata->group;
-    $pageparams->set_current_sesstype($formdata->group ? $formdata->group : att_page_with_filter_controls::SESSTYPE_ALL);
+    $pageparams->set_current_sesstype($formdata->group ? $formdata->group : mod_attendance_page_with_filter_controls::SESSTYPE_ALL);
     if (isset($formdata->includeallsessions)) {
         if (isset($formdata->includenottaken)) {
             $pageparams->view = ATT_VIEW_ALL;
