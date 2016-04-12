@@ -235,7 +235,15 @@ class mod_attendance_renderer extends plugin_renderer_base {
 
             $table->data[$sess->id][] = $i;
             if ($sess->groupid) {
-                $table->data[$sess->id][] = get_string('group') . ': ' . $sessdata->groups[$sess->groupid]->name;
+                if (empty($sessdata->groups[$sess->groupid])) {
+                    $table->data[$sess->id][] = get_string('deletedgroup', 'attendance');
+                    // Remove actions and links on date/time.
+                    $dta['actions'] = '';
+                    $dta['date'] = userdate($sess->sessdate, get_string('strftimedmyw', 'attendance'));
+                    $dta['time'] = $this->construct_time($sess->sessdate, $sess->duration);
+                } else {
+                    $table->data[$sess->id][] = get_string('group') . ': ' . $sessdata->groups[$sess->groupid]->name;
+                }
             } else {
                 $table->data[$sess->id][] = get_string('commonsession', 'attendance');
             }
@@ -859,7 +867,12 @@ class mod_attendance_renderer extends plugin_renderer_base {
             }
             $sesstext .= html_writer::empty_tag('br');
             if ($sess->groupid) {
-                $sesstext .= get_string('group') . ': ' . $reportdata->groups[$sess->groupid]->name;
+                if (empty($reportdata->groups[$sess->groupid])) {
+                    $sesstext .= get_string('deletedgroup', 'attendance');
+                } else {
+                    $sesstext .= get_string('group') . ': ' . $reportdata->groups[$sess->groupid]->name;
+                }
+
             } else {
                 $sesstext .= get_string('commonsession', 'attendance');
             }
