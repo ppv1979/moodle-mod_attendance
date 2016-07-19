@@ -549,10 +549,15 @@ class mod_attendance_structure {
         // Fields we need from the user table.
         $userfields = user_picture::fields('u', array('username' , 'idnumber' , 'institution' , 'department'));
 
-        if (isset($this->pageparams->sort) and ($this->pageparams->sort == ATT_SORT_FIRSTNAME)) {
-            $orderby = "u.firstname ASC, u.lastname ASC, u.idnumber ASC, u.institution ASC, u.department ASC";
+        if (empty($this->pageparams->sort)) {
+            $this->pageparams->sort = ATT_SORT_DEFAULT;
+        }
+        if ($this->pageparams->sort == ATT_SORT_FIRSTNAME) {
+            $orderby = $DB->sql_fullname('u.firstname', 'u.lastname') . ', u.id';
+        } else if ($this->pageparams->sort == ATT_SORT_LASTNAME) {
+            $orderby = 'u.lastname, u.firstname, u.id';
         } else {
-            $orderby = "u.lastname ASC, u.firstname ASC, u.idnumber ASC, u.institution ASC, u.department ASC";
+            list($orderby, $sortparams) = users_order_by_sql('u');
         }
 
         if ($page) {
@@ -676,10 +681,15 @@ class mod_attendance_structure {
               GROUP BY ue.userid, ue.status";
         $params = array('zerotime' => 0, 'uid' => $userid, 'estatus' => ENROL_INSTANCE_ENABLED, 'courseid' => $this->course->id);
         $enrolments = $DB->get_record_sql($sql, $params);
-
-        $user->enrolmentstatus = $enrolments->status;
-        $user->enrolmentstart = $enrolments->mintime;
-        $user->enrolmentend = $enrolments->maxtime;
+        if (!empty($enrolments)) {
+            $user->enrolmentstatus = $enrolments->status;
+            $user->enrolmentstart = $enrolments->mintime;
+            $user->enrolmentend = $enrolments->maxtime;
+        } else {
+            $user->enrolmentstatus = '';
+            $user->enrolmentstart = 0;
+            $user->enrolmentend = 0;
+        }
 
         return $user;
     }
