@@ -52,6 +52,9 @@ class mod_attendance_structure {
     /** @var float number (10, 5) unsigned, the maximum grade for attendance */
     public $grade;
 
+    /** @var int last time attendance was modified - used for global search */
+    public $timemodified;
+
     /** current page parameters */
     public $pageparams;
 
@@ -916,7 +919,7 @@ class mod_attendance_structure {
             $sess->timemodified = $now;
             $DB->update_record('attendance_sessions', $sess);
             if ($sess->caleventid) {
-                attendance_update_calendar_event($sess->caleventid, $duration);
+                attendance_update_calendar_event($sess->caleventid, $duration, $sess->sessdate);
             }
             $event = \mod_attendance\event\session_duration_updated::create(array(
                 'objectid' => $this->id,
