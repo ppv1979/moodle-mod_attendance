@@ -21,6 +21,7 @@
  * @copyright  2016 Dan Marsden http://danmarsden.com
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+defined('MOODLE_INTERNAL') || die();
 
 /**
  * contains specific data/functions for report_page.
@@ -31,6 +32,8 @@
 class mod_attendance_report_page_params extends mod_attendance_page_with_filter_controls {
     public $group;
     public $sort;
+    public $showsessiondetails;
+    public $sessiondetailspos;
 
     public function  __construct() {
         $this->selectortype = self::SELECTOR_GROUP;
@@ -52,6 +55,14 @@ class mod_attendance_report_page_params extends mod_attendance_page_with_filter_
 
         if ($this->sort != ATT_SORT_DEFAULT) {
             $params['sort'] = $this->sort;
+        }
+
+        if (empty($this->showsessiondetails)) {
+            $params['showsessiondetails'] = 0;
+        }
+
+        if ($this->sessiondetailspos != 'left') {
+            $params['sessiondetailspos'] = $this->sessiondetailspos;
         }
 
         return $params;

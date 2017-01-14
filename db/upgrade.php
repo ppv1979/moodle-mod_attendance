@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+defined('MOODLE_INTERNAL') || die();
 require_once(dirname(__FILE__) . '/upgradelib.php');
 
 /**
@@ -190,6 +191,27 @@ function xmldb_attendance_upgrade($oldversion=0) {
 
         // Attendance savepoint reached.
         upgrade_mod_savepoint(true, 2016082900, 'attendance');
+    }
+    if ($oldversion < 2016112100) {
+        $table = new xmldb_table('attendance');
+        $newfield = $table->add_field('subnet', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'timemodified');
+        if (!$dbman->field_exists($table, $newfield)) {
+            $dbman->add_field($table, $newfield);
+        }
+        upgrade_mod_savepoint(true, 2016112100, 'attendance');
+    }
+
+    if ($oldversion < 2016121300) {
+        $table = new xmldb_table('attendance');
+        $field = new xmldb_field('sessiondetailspos', XMLDB_TYPE_CHAR, '5', null, null, null, 'left', 'subnet');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field('showsessiondetails', XMLDB_TYPE_INTEGER, '1', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '1', 'subnet');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2016121300, 'attendance');
     }
 
     return $result;

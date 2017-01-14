@@ -21,6 +21,7 @@
  * @copyright  2016 Dan Marsden http://danmarsden.com
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+defined('MOODLE_INTERNAL') || die();
 
 require_once(dirname(__FILE__) . '/calendar_helpers.php');
 
@@ -58,6 +59,14 @@ class mod_attendance_structure {
     /** current page parameters */
     public $pageparams;
 
+    public $subnet;
+
+    /** Define if session details should be shown in reports */
+    public $showsessiondetails;
+
+    /** Position for the session detail columns related to summary columns.*/
+    public $sessiondetailspos;
+
     private $groupmode;
 
     private $statuses;
@@ -78,6 +87,8 @@ class mod_attendance_structure {
      * @param stdClass $context  The context of the workshop instance
      */
     public function __construct(stdclass $dbrecord, stdclass $cm, stdclass $course, stdclass $context=null, $pageparams=null) {
+        global $DB;
+
         foreach ($dbrecord as $field => $value) {
             if (property_exists('mod_attendance_structure', $field)) {
                 $this->{$field} = $value;
@@ -94,6 +105,13 @@ class mod_attendance_structure {
         }
 
         $this->pageparams = $pageparams;
+
+        if (isset($pageparams->showsessiondetails) && $pageparams->showsessiondetails != $this->showsessiondetails) {
+            $DB->set_field('attendance', 'showsessiondetails', $pageparams->showsessiondetails, array('id' => $this->id));
+        }
+        if (isset($pageparams->sessiondetailspos) && $pageparams->sessiondetailspos != $this->sessiondetailspos) {
+            $DB->set_field('attendance', 'sessiondetailspos', $pageparams->sessiondetailspos, array('id' => $this->id));
+        }
     }
 
     public function get_group_mode() {
@@ -404,7 +422,8 @@ class mod_attendance_structure {
         $event = \mod_attendance\event\session_updated::create(array(
             'objectid' => $this->id,
             'context' => $this->context,
-            'other' => array('info' => $info, 'sessionid' => $sessionid, 'action' => mod_attendance_sessions_page_params::ACTION_UPDATE)));
+            'other' => array('info' => $info, 'sessionid' => $sessionid,
+                             'action' => mod_attendance_sessions_page_params::ACTION_UPDATE)));
         $event->add_record_snapshot('course_modules', $this->cm);
         $event->add_record_snapshot('attendance_sessions', $sess);
         $event->trigger();
@@ -487,7 +506,10 @@ class mod_attendance_structure {
                 $sesslog[$sid]->studentid = $sid; // We check is_numeric on this above.
                 $sesslog[$sid]->statusid = $value; // We check is_numeric on this above.
                 $sesslog[$sid]->statusset = $statuses;
-                $sesslog[$sid]->remarks = array_key_exists('remarks'.$sid, $formdata) ? clean_param($formdata['remarks'.$sid], PARAM_TEXT) : '';
+                $sesslog[$sid]->remarks = '';
+                if (array_key_exists('remarks'.$sid, $formdata)) {
+                    $sesslog[$sid]->remarks = clean_param($formdata['remarks' . $sid], PARAM_TEXT);
+                }
                 $sesslog[$sid]->sessionid = $this->pageparams->sessionid;
                 $sesslog[$sid]->timetaken = $now;
                 $sesslog[$sid]->takenby = $USER->id;
