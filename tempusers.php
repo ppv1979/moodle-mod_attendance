@@ -60,8 +60,8 @@ if ($data = $mform->get_data()) {
     $user->auth = 'manual';
     $user->confirmed = 1;
     $user->deleted = 1;
-    $user->email = time().'@ghost.user.de';
-    $user->username = time().'@ghost.user.de';
+    $user->email = time().'@attendance.danmarsden.com';
+    $user->username = time().'@attendance.danmarsden.com';
     $user->idnumber = 'tempghost';
     $user->mnethostid = $CFG->mnet_localhost_id;
     $studentid = $DB->insert_record('user', $user);
@@ -89,12 +89,18 @@ $tempusers = $DB->get_records('attendance_tempusers', array('courseid' => $cours
 echo '<div>';
 echo '<p style="margin-left:10%;">'.get_string('tempuserslist', 'attendance').'</p>';
 if ($tempusers) {
-    print_tempusers($tempusers, $att);
+    attendance_print_tempusers($tempusers, $att);
 }
 echo '</div>';
 echo $output->footer($course);
 
-function print_tempusers($tempusers, mod_attendance_structure $att) {
+/**
+ * Print list of users.
+ *
+ * @param stdClass $tempusers
+ * @param mod_attendance_structure $att
+ */
+function attendance_print_tempusers($tempusers, mod_attendance_structure $att) {
     echo '<p></p>';
     echo '<table border="1" bordercolor="#EEEEEE" style="background-color:#fff" cellpadding="2" align="center"'.
           'width="80%" summary="'.get_string('temptable', 'attendance').'"><tr>';

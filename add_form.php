@@ -48,6 +48,8 @@ class mod_attendance_add_form extends moodleform {
         $cm            = $this->_customdata['cm'];
         $modcontext    = $this->_customdata['modcontext'];
 
+        $pluginconfig = get_config('attendance');
+
         $mform->addElement('header', 'general', get_string('addsession', 'attendance'));
 
         $groupmode = groups_get_activity_groupmode($cm);
@@ -91,7 +93,7 @@ class mod_attendance_add_form extends moodleform {
                 }
                 $select = &$mform->addElement('select', 'groups', get_string('groups', 'group'), $selectgroups);
                 $select->setMultiple(true);
-                $mform->disabledIf('groups', 'sessiontype', 'neq', mod_attendance_structure::SESSION_GROUP);
+                $mform->disabledIf('groups', 'sessiontype', 'eq', mod_attendance_structure::SESSION_COMMON);
             } else {
                 if ($groupmode == VISIBLEGROUPS) {
                     $mform->updateElementAttr($radio, array('disabled' => 'disabled'));
@@ -119,23 +121,26 @@ class mod_attendance_add_form extends moodleform {
             $mform->setType('statusset', PARAM_INT);
         }
 
-        // Students can mark own attendance.
-        if (!empty(get_config('attendance', 'studentscanmark'))) {
-            $mform->addElement('checkbox', 'studentscanmark', '', get_string('studentscanmark', 'attendance'));
-            $mform->addHelpButton('studentscanmark', 'studentscanmark', 'attendance');
-        } else {
-            $mform->addElement('hidden', 'studentscanmark', '0');
-            $mform->settype('studentscanmark', PARAM_INT);
-        }
-
         $mform->addElement('editor', 'sdescription', get_string('description', 'attendance'), array('rows' => 1, 'columns' => 80),
                             array('maxfiles' => EDITOR_UNLIMITED_FILES, 'noclean' => true, 'context' => $modcontext));
         $mform->setType('sdescription', PARAM_RAW);
 
+        // If warnings allow selector for reporting.
+        if (!empty(get_config('attendance', 'enablewarnings'))) {
+            $mform->addElement('checkbox', 'absenteereport', '', get_string('includeabsentee', 'attendance'));
+            $mform->addHelpButton('absenteereport', 'includeabsentee', 'attendance');
+            if (isset($pluginconfig->absenteereport_default)) {
+                $mform->setDefault('absenteereport', $pluginconfig->absenteereport_default);
+            }
+        } else {
+            $mform->addElement('hidden', 'absenteereport', 1);
+            $mform->setType('absenteereport', PARAM_INT);
+        }
         // For multiple sessions.
-
         $mform->addElement('header', 'headeraddmultiplesessions', get_string('addmultiplesessions', 'attendance'));
-
+        if (!empty($pluginconfig->multisessionexpanded)) {
+            $mform->setExpanded('headeraddmultiplesessions');
+        }
         $mform->addElement('checkbox', 'addmultiply', '', get_string('repeatasfollows', 'attendance'));
         $mform->addHelpButton('addmultiply', 'createmultiplesessions', 'attendance');
 
@@ -156,7 +161,7 @@ class mod_attendance_add_form extends moodleform {
         $mform->disabledIf('sdays', 'addmultiply', 'notchecked');
 
         $period = array(1 => 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36);
+            21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36);
         $periodgroup = array();
         $periodgroup[] =& $mform->createElement('select', 'period', '', $period, false, true);
         $periodgroup[] =& $mform->createElement('static', 'perioddesc', '', get_string('week', 'attendance'));
@@ -172,6 +177,109 @@ class mod_attendance_add_form extends moodleform {
         $mform->addElement('hidden', 'previoussessiondate', 0);
         $mform->setType('previoussessiondate', PARAM_INT);
 
+        // Students can mark own attendance.
+        if (!empty(get_config('attendance', 'studentscanmark'))) {
+            $mform->addElement('header', 'headerstudentmarking', get_string('studentmarking', 'attendance'), true);
+            if (!empty($pluginconfig->studentrecordingexpanded)) {
+                $mform->setExpanded('headerstudentmarking');
+            }
+            $mform->addElement('checkbox', 'studentscanmark', '', get_string('studentscanmark', 'attendance'));
+            $mform->addHelpButton('studentscanmark', 'studentscanmark', 'attendance');
+
+            $options = attendance_get_automarkoptions();
+
+            $mform->addElement('select', 'automark', get_string('automark', 'attendance'), $options);
+            $mform->setType('automark', PARAM_INT);
+            $mform->addHelpButton('automark', 'automark', 'attendance');
+            $mform->hideif('automark', 'studentscanmark', 'notchecked');
+            $mform->setDefault('automark', $this->_customdata['att']->automark);
+
+            $mgroup = array();
+
+            $mgroup[] = & $mform->createElement('text', 'studentpassword', get_string('studentpassword', 'attendance'));
+            $mgroup[] = & $mform->createElement('checkbox', 'randompassword', '', get_string('randompassword', 'attendance'));
+            $mform->addGroup($mgroup, 'passwordgrp', get_string('passwordgrp', 'attendance'), array(' '), false);
+
+            $mform->setType('studentpassword', PARAM_TEXT);
+            $mform->addHelpButton('passwordgrp', 'passwordgrp', 'attendance');
+
+            $mform->hideif('passwordgrp', 'studentscanmark', 'notchecked');
+            $mform->hideif('studentpassword', 'randompassword', 'checked');
+            $mform->hideif('passwordgrp', 'automark', 'eq', ATTENDANCE_AUTOMARK_ALL);
+
+            $mform->addElement('checkbox', 'autoassignstatus', '', get_string('autoassignstatus', 'attendance'));
+            $mform->addHelpButton('autoassignstatus', 'autoassignstatus', 'attendance');
+            $mform->hideif('autoassignstatus', 'studentscanmark', 'notchecked');
+
+            if (isset($pluginconfig->autoassignstatus)) {
+                $mform->setDefault('autoassignstatus', $pluginconfig->autoassignstatus);
+            }
+            if (isset($pluginconfig->studentscanmark_default)) {
+                $mform->setDefault('studentscanmark', $pluginconfig->studentscanmark_default);
+            }
+            if (isset($pluginconfig->randompassword_default)) {
+                $mform->setDefault('randompassword', $pluginconfig->randompassword_default);
+            }
+            if (isset($pluginconfig->automark_default)) {
+                $mform->setDefault('automark', $pluginconfig->automark_default);
+            }
+            $mgroup2 = array();
+            $mgroup2[] = & $mform->createElement('text', 'subnet', get_string('requiresubnet', 'attendance'));
+            if (empty(get_config('attendance', 'subnetactivitylevel'))) {
+                $mform->setDefault('subnet', get_config('attendance', 'subnet'));
+            } else {
+                $mform->setDefault('subnet', $this->_customdata['att']->subnet);
+            }
+
+            $mgroup2[] = & $mform->createElement('checkbox', 'usedefaultsubnet', get_string('usedefaultsubnet', 'attendance'));
+            $mform->setDefault('usedefaultsubnet', 1);
+            $mform->setType('subnet', PARAM_TEXT);
+
+            $mform->addGroup($mgroup2, 'subnetgrp', get_string('requiresubnet', 'attendance'), array(' '), false);
+            $mform->setAdvanced('subnetgrp');
+            $mform->addHelpButton('subnetgrp', 'requiresubnet', 'attendance');
+
+            $mform->hideif('subnetgrp', 'studentscanmark', 'notchecked');
+            $mform->hideif('subnet', 'usedefaultsubnet', 'checked');
+
+            $mgroup3 = array();
+            $mgroup3[] = & $mform->createElement('checkbox', 'preventsharedip', '');
+            $mgroup3[] = & $mform->createElement('text', 'preventsharediptime',
+                get_string('preventsharediptime', 'attendance'), '', 'test');
+            $mgroup3[] = & $mform->createElement('static', 'preventsharediptimedesc', '',
+                get_string('preventsharedipminutes', 'attendance'));
+            $mform->addGroup($mgroup3, 'preventsharedgroup', get_string('preventsharedip', 'attendance'), array(' '), false);
+            $mform->addHelpButton('preventsharedgroup', 'preventsharedip', 'attendance');
+            $mform->setAdvanced('preventsharedgroup');
+            $mform->setType('preventsharediptime', PARAM_INT);
+            $mform->hideif('preventsharedgroup', 'studentscanmark', 'notchecked');
+            $mform->disabledIf('preventsharediptime', 'preventsharedip', 'notchecked');
+            if (isset($pluginconfig->preventsharedip)) {
+                $mform->setDefault('preventsharedip', $pluginconfig->preventsharedip);
+            }
+            if (isset($pluginconfig->preventsharediptime)) {
+                $mform->setDefault('preventsharediptime', $pluginconfig->preventsharediptime);
+            }
+
+        } else {
+            $mform->addElement('hidden', 'studentscanmark', '0');
+            $mform->settype('studentscanmark', PARAM_INT);
+            $mform->addElement('hidden', 'automark', '0');
+            $mform->setType('automark', PARAM_INT);
+            $mform->addElement('hidden', 'autoassignstatus', '0');
+            $mform->setType('autoassignstatus', PARAM_INT);
+
+            $mform->addElement('hidden', 'subnet', '');
+            $mform->setType('subnet', PARAM_TEXT);
+
+            $mform->addElement('hidden', 'preventsharedip', '0');
+            $mform->setType('preventsharedip', PARAM_INT);
+
+            $sharedtime = isset($pluginconfig->preventsharediptime) ? $pluginconfig->preventsharediptime : null;
+            $mform->addElement('hidden', 'preventsharediptime', $sharedtime);
+            $mform->setType('preventsharediptime', PARAM_INT);
+        }
+
         $this->add_action_buttons(true, get_string('add', 'attendance'));
     }
 
@@ -181,6 +289,7 @@ class mod_attendance_add_form extends moodleform {
      * @param array $files
      */
     public function validation($data, $files) {
+        global $DB;
         $errors = parent::validation($data, $files);
 
         $sesstarttime = $data['sestime']['starthour'] * HOURSECS + $data['sestime']['startminute'] * MINSECS;
@@ -218,9 +327,34 @@ class mod_attendance_add_form extends moodleform {
             $this->_form->setConstant('previoussessiondate', $data['sessiondate']);
         }
 
+        if ($data['automark'] == ATTENDANCE_AUTOMARK_CLOSE) {
+            $cm            = $this->_customdata['cm'];
+            // Check that the selected statusset has a status to use when unmarked.
+            $sql = 'SELECT id
+            FROM {attendance_statuses}
+            WHERE deleted = 0 AND (attendanceid = 0 or attendanceid = ?)
+            AND setnumber = ? AND setunmarked = 1';
+            $params = array($cm->instance, $data['statusset']);
+            if (!$DB->record_exists_sql($sql, $params)) {
+                $errors['automark'] = get_string('noabsentstatusset', 'attendance');
+            }
+        }
+
+        if (!empty($data['studentscanmark']) && !empty($data['preventsharedip']) &&
+                empty($data['preventsharediptime'])) {
+            $errors['preventsharedgroup'] = get_string('iptimemissing', 'attendance');
+
+        }
         return $errors;
     }
 
+    /**
+     * Check weekdays function.
+     * @param int $sessiondate
+     * @param int $sessionenddate
+     * @param int $sdays
+     * @return bool
+     */
     private function checkweekdays($sessiondate, $sessionenddate, $sdays) {
 
         $found = false;

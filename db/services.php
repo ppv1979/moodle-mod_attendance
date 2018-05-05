@@ -17,7 +17,7 @@
 /**
  * Web service local plugin attendance external functions and service definitions.
  *
- * @package    localwsattendance
+ * @package    mod_attendance
  * @copyright  2015 Caio Bressan Doneda
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -51,8 +51,15 @@ $functions = array(
 
 
 // We define the services to install as pre-build services. A pre-build service is not editable by administrator.
-$services = array('Attendance' => array('functions' => array('mod_wsattendance_get_courses_with_today_sessions',
-                  'mod_wsattendance_get_session',
-                  'mod_wsattendance_update_user_status'),
-                  'restrictedusers' => 0,
-                  'enabled' => 1));
+$services = array(
+    'Attendance' => array(
+        'functions' => array(
+            'mod_wsattendance_get_courses_with_today_sessions',
+            'mod_wsattendance_get_session',
+            'mod_wsattendance_update_user_status'
+        ),
+        'restrictedusers' => 0,
+        'enabled' => 1,
+        'shortname' => 'mod_attendance_ws'
+    )
+);
